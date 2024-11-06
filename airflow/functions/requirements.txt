@@ -1,0 +1,4 @@
+Flask==2.2.5
+functions_framework==3.8.1
+pandas==2.2.3
+Requests==2.32.3
