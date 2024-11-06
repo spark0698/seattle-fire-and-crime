@@ -2,3 +2,4 @@ config/
 logs/
 plugins/
 .env
+__pycache__/
