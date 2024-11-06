@@ -3,3 +3,4 @@ logs/
 plugins/
 .env
 __pycache__/
+gcp/
