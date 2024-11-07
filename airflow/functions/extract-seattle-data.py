@@ -16,6 +16,7 @@ def extract_data(request: Request) -> Response:
 
         etl_run_type = request.headers.get('initial')
 
+        # Determines which endpoint to extract from
         if endpoint == 'crime':
             base = crime_endpoint
             orderby = 'offense_start_datetime'
@@ -25,6 +26,7 @@ def extract_data(request: Request) -> Response:
         else:
             abort(400, 'Invalid endpoint query parameter')
 
+        # TODO Determines type of ETL 
         if etl_run_type == 'True':
             print('Initial ETL')
         else:
@@ -32,43 +34,48 @@ def extract_data(request: Request) -> Response:
         
         offset = 0
 
-        all_data = pd.DataFrame()
-
+        # Write each page to temp CSV
+        temp_file = f'/tmp/{endpoint}_data.csv'
         while True:
-            if offset % 100000 == 0:
-                print(f'offset: {offset}')
-            response = requests.get(f'{base}?$offset={offset}&$order={orderby}%20ASC')
-            if response.status_code == 200:
-                data = response.json()
-                if data:
-                    thousand = pd.DataFrame(data)
-                    all_data = pd.concat([all_data, thousand], axis = 0)
-                    offset += 1000
-                else:
-                    break
+            if offset == 0:
+                head = True
             else:
-                abort(response.status_code)
+                head = False
+            page_data = get_api_data(offset, base, orderby)
+            if page_data == []:
+                break
+            pd.DataFrame(page_data).to_csv(temp_file, mode='a', header = head, index=False)
+            offset += 1000
         
-        write_to_gcs(all_data, f'{endpoint}_data.csv')
+        # Load full temp CSV to blob in Cloud Storage
+        write_to_gcs(temp_file, f'{endpoint}_data.csv')
         return Response(status=204)
+    
+def get_api_data(offset: int, base: str, orderby:str) -> list:
+    if offset % 100000 == 0:
+        print(f'offset: {offset}')
+    response = requests.get(f'{base}?$offset={offset}&$order={orderby}%20ASC')
+    if response.status_code == 200:
+        data = response.json()
+        return data
+    else:
+        abort(response.status_code)
 
-def write_to_gcs(df: pd.DataFrame, file_name: str) -> None:
-    # Convert DataFrame to CSV in memory
-    csv_buffer = io.StringIO()
-    df.to_csv(csv_buffer, index=False)
-
-    # Set up GCS client and upload
+def write_to_gcs(temp_csv: str, file_name: str) -> None:
+    # Set up GCS client
     client = storage.Client()
     
+    # Create bucket if doesn't exist
     bucket_name = 'seattle-fire-and-crime'
     try:
         bucket = client.get_bucket(bucket_name)
     except NotFound:
         bucket = client.create_bucket(bucket_name)
 
+    # Create blob
     blob = bucket.blob(file_name)
 
-    csv_buffer.seek(0)  # Rewind the buffer to the beginning
-    blob.upload_from_file(csv_buffer, content_type='text/csv') 
+    # Upload file into blob
+    blob.upload_from_filename(temp_csv, content_type='text/csv') 
 
     print(f'Wrote {file_name} blob to GCS bucket {bucket_name}')
