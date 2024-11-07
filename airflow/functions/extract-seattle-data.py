@@ -5,6 +5,7 @@ import functions_framework
 from flask import abort, Response, Request
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
+from datetime import datetime
 
 crime_endpoint = 'https://data.seattle.gov/resource/tazs-3rd5.json'
 fire_endpoint = 'https://data.seattle.gov/resource/kzjm-xkqj.json'
@@ -35,7 +36,8 @@ def extract_data(request: Request) -> Response:
         offset = 0
 
         # Write each page to temp CSV
-        temp_file = f'/tmp/{endpoint}_data.csv'
+        date = datetime.now().strftime("%Y%m%d-%H%M%S")
+        temp_file = f'/tmp/{endpoint}_data_{date}.csv'
         while True:
             if offset == 0:
                 head = True
