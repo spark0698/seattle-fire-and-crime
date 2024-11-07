@@ -4,6 +4,7 @@ import pandas as pd
 import functions_framework
 from flask import abort, Response, Request
 from google.cloud import storage
+from google.cloud.exceptions import NotFound
 
 crime_endpoint = 'https://data.seattle.gov/resource/tazs-3rd5.json'
 fire_endpoint = 'https://data.seattle.gov/resource/kzjm-xkqj.json'
@@ -34,7 +35,8 @@ def extract_data(request: Request) -> Response:
         all_data = pd.DataFrame()
 
         while True:
-            print(f'offset: {offset}')
+            if offset % 100000 == 0:
+                print(f'offset: {offset}')
             response = requests.get(f'{base}?$offset={offset}&$order={orderby}%20ASC')
             if response.status_code == 200:
                 data = response.json()
@@ -59,7 +61,11 @@ def write_to_gcs(df: pd.DataFrame, file_name: str) -> None:
     client = storage.Client()
     
     bucket_name = 'seattle-fire-and-crime'
-    bucket = client.get_bucket(bucket_name)
+    try:
+        bucket = client.get_bucket(bucket_name)
+    except NotFound:
+        bucket = client.create_bucket(bucket_name)
+
     blob = bucket.blob(file_name)
 
     csv_buffer.seek(0)  # Rewind the buffer to the beginning
