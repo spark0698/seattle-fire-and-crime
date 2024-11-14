@@ -41,7 +41,7 @@ t1 = SimpleHttpOperator(
     http_conn_id = 'CLOUD_RUN_HTTP',
     method = 'GET', 
     data = {'endpoint': 'crime'},
-    response_check = lambda response: response.status_code == 200,  # Check for successful response
+    response_check = lambda response: response.status_code == 204,  # Check for successful response
     dag = dag
 )
 
@@ -50,7 +50,7 @@ t2 = SimpleHttpOperator(
     http_conn_id = 'CLOUD_RUN_HTTP',
     method = 'GET', 
     data = {'endpoint': 'fire'},
-    response_check = lambda response: response.status_code == 200,  # Check for successful response
+    response_check = lambda response: response.status_code == 204,  # Check for successful response
     dag = dag
 )
 
