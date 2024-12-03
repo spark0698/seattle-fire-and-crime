@@ -1,2 +1,2 @@
 #!/bin/bash
-pip install --upgrade apache-sedona
+conda install conda-forge::apache-sedona
