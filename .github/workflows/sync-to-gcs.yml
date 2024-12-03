@@ -27,3 +27,4 @@ jobs:
       with:
         path: 'transformations/spark.py'
         destination: '${{ secrets.GCS_BUCKET_NAME }}'
+        gzip: false
