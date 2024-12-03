@@ -28,3 +28,10 @@ jobs:
         path: 'transformations/spark.py'
         destination: '${{ secrets.GCS_BUCKET_NAME }}'
         gzip: false
+
+    - id: 'upload-reqs'
+      uses: 'google-github-actions/upload-cloud-storage@v2'
+      with:
+        path: 'transformations/sedona.sh'
+        destination: '${{ secrets.GCS_BUCKET_NAME }}'
+        gzip: false
