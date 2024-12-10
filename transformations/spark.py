@@ -6,9 +6,6 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
     .config('spark.jars', 'gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar') \
-    .config('spark.jars.packages',
-           'org.apache.sedona:sedona-spark-shaded-3.5_2.12-1.6.1,'
-           'org.datasyslab:geotools-wrapper:1.6.1-28.2') \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
