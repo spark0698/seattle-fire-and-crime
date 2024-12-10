@@ -68,7 +68,7 @@ def main():
             .withColumn('geometry_wkt', ST_AsText(neighborhood_data['geometry'])) \
             .drop('geometry')
     
-    neighborhood_data_wkt.show(5)
+    neighborhood_data.show(5)
     
     # dfs = {'fire_data': fire_data, 
     #         'crime_data': crime_data, 
