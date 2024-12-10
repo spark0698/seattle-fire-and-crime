@@ -68,11 +68,11 @@ def main():
                   'crime_data': crime_data, 
                   'neighborhood_data': neighborhood_data}
 
-    # Save the data to BigQuery (truncating for now before incremental batch load is implemented)
+    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
     for name, df in dfs.items():
         df.write.format('bigquery') \
             .option('table', f'seattle_dataset.{name}') \
-            .option('writeDisposition', 'WRITE_TRUNCATE') \
+            .mode('overwrite') \
             .save()
 
     spark.stop()
