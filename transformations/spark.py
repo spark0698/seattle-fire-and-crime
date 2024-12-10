@@ -58,11 +58,17 @@ def main():
     neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
             .selectExpr('explode(features) as features') \
             .select('features.*') \
-            .withColumn('district', expr("properties['L_HOOD']")) \
-            .withColumn('neighborhood', expr("properties['S_HOOD']")) \
+            .withColumn('district', expr("properties['L_HOOD']").cast(StringType())) \
+            .withColumn('neighborhood', expr("properties['S_HOOD']").cast(StringType())) \
             .withColumn('geometry', ST_AsText(ST_GeomFromGeoJSON(col('geometry').cast('string')))) \
             .drop('properties') \
             .drop('type')
+    
+    neighborhood_data = neighborhood_data.select(
+        col('district').cast(StringType()).alias('district'),
+        col('neighborhood').cast(StringType()).alias('neighborhood'),
+        col('geometry').cast(StringType()).alias('geometry')
+)
     
     neighborhood_data.show(5)
     
