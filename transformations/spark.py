@@ -68,16 +68,18 @@ def main():
             .withColumn('geometry_wkt', ST_AsText(neighborhood_data['geometry'])) \
             .drop('geometry')
     
-    dfs = {'fire_data': fire_data, 
-            'crime_data': crime_data, 
-            'neighborhood_data': neighborhood_data_wkt}
+    neighborhood_data_wkt.show(5)
+    
+    # dfs = {'fire_data': fire_data, 
+    #         'crime_data': crime_data, 
+    #         'neighborhood_data': neighborhood_data_wkt}
 
-    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
-    for name, df in dfs.items():
-        df.write.format('bigquery') \
-            .option('table', f'seattle_dataset.{name}') \
-            .mode('overwrite') \
-            .save()
+    # # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
+    # for name, df in dfs.items():
+    #     df.write.format('bigquery') \
+    #         .option('table', f'seattle_dataset.{name}') \
+    #         .mode('overwrite') \
+    #         .save()
 
     spark.stop()
 
