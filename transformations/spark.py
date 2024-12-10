@@ -1,7 +1,7 @@
 from sedona.spark import *
-from sedona.sql import ST_GeomFromGeoJSON
+from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr
+from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, monotonically_increasing_id
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
@@ -64,9 +64,13 @@ def main():
             .drop('properties') \
             .drop('type')
     
+    neighborhood_data_wkt = neighborhood_data \
+            .withColumn('geometry_wkt', ST_AsText(neighborhood_data['geometry'])) \
+            .drop('geometry')
+    
     dfs = {'fire_data': fire_data, 
-                  'crime_data': crime_data, 
-                  'neighborhood_data': neighborhood_data}
+            'crime_data': crime_data, 
+            'neighborhood_data': neighborhood_data_wkt}
 
     # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
     for name, df in dfs.items():
