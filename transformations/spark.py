@@ -4,8 +4,14 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, monotonically_increasing_id
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType
 
+jar_paths = ['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar',
+             'gs://seattle-fire-and-crime/jars/geotools-wrapper-1.7.0-28.5.jar',
+             'gs://seattle-fire-and-crime/jars/sedona-spark-shaded-3.5_2.13-1.7.0.jar']
+
+jar_string = ','.join(jar_paths)
+
 spark = SparkSession.builder.appName('SeattleIncidents') \
-    .config('spark.jars', 'gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar') \
+    .config('spark.jars', jar_paths) \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
