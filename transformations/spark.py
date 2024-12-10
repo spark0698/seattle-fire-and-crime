@@ -60,26 +60,22 @@ def main():
             .select('features.*') \
             .withColumn('district', expr("properties['L_HOOD']")) \
             .withColumn('neighborhood', expr("properties['S_HOOD']")) \
-            .withColumn('geometry', ST_GeomFromGeoJSON(col('geometry'))) \
+            .withColumn('geometry', ST_AsText(ST_GeomFromGeoJSON(col('geometry').cast('string')))) \
             .drop('properties') \
             .drop('type')
     
-    neighborhood_data_wkt = neighborhood_data \
-            .withColumn('geometry_wkt', ST_AsText(neighborhood_data['geometry'])) \
-            .drop('geometry')
-    
     neighborhood_data.show(5)
     
-    # dfs = {'fire_data': fire_data, 
-    #         'crime_data': crime_data, 
-    #         'neighborhood_data': neighborhood_data_wkt}
+    dfs = {'fire_data': fire_data, 
+            'crime_data': crime_data, 
+            'neighborhood_data': neighborhood_data}
 
-    # # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
-    # for name, df in dfs.items():
-    #     df.write.format('bigquery') \
-    #         .option('table', f'seattle_dataset.{name}') \
-    #         .mode('overwrite') \
-    #         .save()
+    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
+    for name, df in dfs.items():
+        df.write.format('bigquery') \
+            .option('table', f'seattle_dataset.{name}') \
+            .mode('overwrite') \
+            .save()
 
     spark.stop()
 
