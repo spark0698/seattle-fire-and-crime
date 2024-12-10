@@ -1,4 +1,5 @@
 from sedona.spark import *
+from sedona.sql import ST_GeomFromGeoJSON
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType
@@ -59,12 +60,13 @@ def main():
             .select('features.*') \
             .withColumn('district', expr("properties['L_HOOD']")) \
             .withColumn('neighborhood', expr("properties['S_HOOD']")) \
+            .withColumn('geometry', ST_GeomFromGeoJSON(col('geometry'))) \
             .drop('properties') \
             .drop('type')
     
     dfs = {'fire_data': fire_data, 
                   'crime_data': crime_data, 
-                  'neighbrohood_data': neighborhood_data}
+                  'neighborhood_data': neighborhood_data}
 
     # Save the data to BigQuery (truncating for now before incremental batch load is implemented)
     for name, df in dfs.items():
