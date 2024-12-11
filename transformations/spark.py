@@ -10,6 +10,9 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire
 spark = SparkSession.builder.appName('SeattleIncidents') \
     .getOrCreate()
 
+# Print the classpath to check the JARs being loaded
+print(spark.sparkContext.getConf().get("spark.jars"))
+
 sedona = SedonaContext.create(spark)
 
 # Temporary GCS bucket for BigQuery export data
