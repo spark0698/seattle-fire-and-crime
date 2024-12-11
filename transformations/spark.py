@@ -7,14 +7,7 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 import os
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire-and-crime/gcp/seattle-fire-and-crime-9ee8045e549b.json'
 
-# jar_paths = ['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar',
-#              'gs://seattle-fire-and-crime/jars/geotools-wrapper-1.7.0-28.5.jar',
-#              'gs://seattle-fire-and-crime/jars/sedona-spark-shaded-3.5_2.13-1.7.0.jar']
-
-# jar_string = ','.join(jar_paths)
-
 spark = SparkSession.builder.appName('SeattleIncidents') \
-    .config('spark.jars', 'gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar') \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
