@@ -1,7 +1,8 @@
 config/
 logs/
 plugins/
-.env
 __pycache__/
 gcp/
-/venv
+venv/
+.env
+.DS_Store

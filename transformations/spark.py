@@ -4,6 +4,9 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, monotonically_increasing_id
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType
 
+import os
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire-and-crime/gcp/seattle-fire-and-crime-9ee8045e549b.json'
+
 jar_paths = ['gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar',
              'gs://seattle-fire-and-crime/jars/geotools-wrapper-1.7.0-28.5.jar',
              'gs://seattle-fire-and-crime/jars/sedona-spark-shaded-3.5_2.13-1.7.0.jar']
@@ -58,33 +61,37 @@ def main():
     fire_data = spark.read.csv(fire_file_path, header = True, schema = fire_schema)
     crime_data = spark.read.csv(crime_file_path, header = True, schema = crime_schema)
 
+    fire_data.show(2)
+    crime_data.show(2)
+
     neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
             .selectExpr('explode(features) as features') \
             .select('features.*') \
-            .withColumn('district', expr("properties['L_HOOD']").cast(StringType())) \
-            .withColumn('neighborhood', expr("properties['S_HOOD']").cast(StringType())) \
-            .withColumn('geometry', ST_AsText(ST_GeomFromGeoJSON(col('geometry').cast('string')))) \
+            .withColumn('district', expr("properties['L_HOOD']")) \
+            .withColumn('neighborhood', expr("properties['S_HOOD']")) \
             .drop('properties') \
-            .drop('type')
+            .drop('type') \
+            .drop('geometry')
+            # .withColumn('geometry', ST_AsText(ST_GeomFromGeoJSON(col('geometry').cast('string')))) \
     
-    neighborhood_data = neighborhood_data.select(
-        col('district').cast(StringType()).alias('district'),
-        col('neighborhood').cast(StringType()).alias('neighborhood'),
-        col('geometry').cast(StringType()).alias('geometry')
-)
+    # neighborhood_data = neighborhood_data.select(
+    #     col('district').cast(StringType()).alias('district'),
+    #     col('neighborhood').cast(StringType()).alias('neighborhood'),
+    #     col('geometry').cast(StringType()).alias('geometry')
+    # )
     
-    neighborhood_data.show(5)
+    neighborhood_data.show(2)
     
-    dfs = {'fire_data': fire_data, 
-            'crime_data': crime_data, 
-            'neighborhood_data': neighborhood_data}
+    # dfs = {'fire_data': fire_data, 
+    #         'crime_data': crime_data, 
+    #         'neighborhood_data': neighborhood_data}
 
-    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
-    for name, df in dfs.items():
-        df.write.format('bigquery') \
-            .option('table', f'seattle_dataset.{name}') \
-            .mode('overwrite') \
-            .save()
+    # # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
+    # for name, df in dfs.items():
+    #     df.write.format('bigquery') \
+    #         .option('table', f'seattle_dataset.{name}') \
+    #         .mode('overwrite') \
+    #         .save()
 
     spark.stop()
 
