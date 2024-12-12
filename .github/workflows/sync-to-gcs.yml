@@ -29,9 +29,16 @@ jobs:
         destination: '${{ secrets.GCS_BUCKET_NAME }}'
         gzip: false
 
-    - id: 'upload-reqs'
+    - id: 'upload-filepaths'
       uses: 'google-github-actions/upload-cloud-storage@v2'
       with:
-        path: 'transformations/sedona.sh'
+        path: 'transformations/filepaths.py'
+        destination: '${{ secrets.GCS_BUCKET_NAME }}'
+        gzip: false
+
+    - id: 'upload-schemas'
+      uses: 'google-github-actions/upload-cloud-storage@v2'
+      with:
+        path: 'transformations/schemas.py'
         destination: '${{ secrets.GCS_BUCKET_NAME }}'
         gzip: false
