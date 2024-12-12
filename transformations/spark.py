@@ -25,8 +25,8 @@ def main():
         StructField('address', StringType(), False),
         StructField('type', StringType(), False),
         StructField('datetime', TimestampNTZType(), False),
-        StructField('latitude', DecimalType(), False),
-        StructField('longitude', DecimalType(), False),
+        StructField('latitude', DecimalType(25, 20), False),
+        StructField('longitude', DecimalType(25, 20), False),
         StructField('report_location', StringType(), False),
         StructField('incident_number', StringType(), False)
     ])
@@ -46,8 +46,8 @@ def main():
         StructField('beat', StringType(), False),
         StructField('mcpp', StringType(), False),
         StructField('_100_block_address', StringType(), False),
-        StructField('longitude', DecimalType(), False),
-        StructField('latitude', DecimalType(), False),
+        StructField('longitude', DecimalType(25, 20), False),
+        StructField('latitude', DecimalType(25, 20), False),
         StructField('offense_end_datetime', TimestampNTZType(), False)
     ])
 
@@ -84,7 +84,7 @@ def main():
     spark.stop()
 
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
-    point_df = df.withColumn('point', ST_Point(df.latitude, df.longitude))
+    point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
     neighb_df = point_df.alias('point_df') \
         .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry)) 
 
