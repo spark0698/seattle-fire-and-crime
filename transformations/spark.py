@@ -62,7 +62,7 @@ def main():
             .select('features.*') \
             .withColumn('district', expr("properties['L_HOOD']")) \
             .withColumn('neighborhood', expr("properties['S_HOOD']")) \
-            .withColumn('geometry', ST_AsText(ST_GeomFromGeoJSON(col('geometry')))) \
+            .withColumn('geometry', ST_GeomFromGeoJSON(col('geometry'))) \
             .drop('properties') \
             .drop('type')
     
