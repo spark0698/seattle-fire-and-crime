@@ -85,9 +85,8 @@ def main():
 
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
     point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
-    neighb_df = point_df \
-        .join(neighb_info, ST_Within(point_df.point, neighb_info.geometry)) \
-        .select('point_df.*', 'neighb_info.district', 'neighb_info.neighborhood')
+    neighb_df = point_df.alias('point_df') \
+        .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry)) 
 
     return neighb_df
 
