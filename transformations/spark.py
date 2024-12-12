@@ -10,8 +10,8 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire
 spark = SparkSession.builder.appName('SeattleIncidents') \
     .getOrCreate()
 
-# Print the classpath to check the JARs being loaded
-print(spark.sparkContext.getConf().get("spark.jars"))
+# Check the classpath environment variable for JARs
+print("Spark classpath:", spark.sparkContext._jsc.hadoopConfiguration().get("spark.jars"))
 
 sedona = SedonaContext.create(spark)
 
