@@ -74,16 +74,16 @@ def main():
     
     neighborhood_data.show(2)
     
-    # dfs = {'fire_data': fire_data, 
-    #         'crime_data': crime_data, 
-    #         'neighborhood_data': neighborhood_data}
+    dfs = {'fire_data': fire_data, 
+            'crime_data': crime_data, 
+            'neighborhood_data': neighborhood_data}
 
-    # # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
-    # for name, df in dfs.items():
-    #     df.write.format('bigquery') \
-    #         .option('table', f'seattle_dataset.{name}') \
-    #         .mode('overwrite') \
-    #         .save()
+    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
+    for name, df in dfs.items():
+        df.write.format('bigquery') \
+            .option('table', f'seattle_dataset.{name}') \
+            .mode('overwrite') \
+            .save()
 
     spark.stop()
 
