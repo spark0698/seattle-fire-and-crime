@@ -35,7 +35,6 @@ def main():
         StructField('report_number', StringType(), False),
         StructField('offense_id', StringType(), False),
         StructField('offense_start_datetime', TimestampNTZType(), False),
-        StructField('offense_end_datetime', TimestampNTZType(), False),
         StructField('report_datetime', TimestampNTZType(), False),
         StructField('group_a_b', StringType(), False),
         StructField('crime_against_category', StringType(), False),
@@ -49,6 +48,7 @@ def main():
         StructField('_100_block_address', StringType(), False),
         StructField('longitude', DecimalType(), False),
         StructField('latitude', DecimalType(), False),
+        StructField('offense_end_datetime', TimestampNTZType(), False)
     ])
 
     fire_data = spark.read.csv(fire_file_path, header = True, schema = fire_schema)
@@ -62,7 +62,7 @@ def main():
             .select('features.*') \
             .withColumn('district', expr("properties['L_HOOD']")) \
             .withColumn('neighborhood', expr("properties['S_HOOD']")) \
-            .withColumn('geometry', ST_GeomFromGeoJSON(col('geometry'))) \
+            .withColumn('geometry', col('geometry')) \
             .drop('properties') \
             .drop('type')
     
