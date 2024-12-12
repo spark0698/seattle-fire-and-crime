@@ -8,10 +8,14 @@ import os
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire-and-crime/gcp/seattle-fire-and-crime-9ee8045e549b.json'
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
+    .config('spark.jars', 'gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.13-0.41.0.jar') \
     .getOrCreate()
 
-# Check the classpath environment variable for JARs
-print("Spark classpath:", spark.sparkContext._jsc.hadoopConfiguration().get("spark.jars"))
+# Get the list of JARs loaded by Spark
+loaded_jars = spark.sparkContext.jars
+
+# Print out the loaded JARs
+print("Loaded JARs:", loaded_jars)
 
 sedona = SedonaContext.create(spark)
 
