@@ -1,8 +1,8 @@
 from sedona.spark import *
 from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, monotonically_increasing_id
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
 
 import os
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire-and-crime/gcp/seattle-fire-and-crime-9ee8045e549b.json'
@@ -54,9 +54,6 @@ def main():
     fire_data = spark.read.csv(fire_file_path, header = True, schema = fire_schema)
     crime_data = spark.read.csv(crime_file_path, header = True, schema = crime_schema)
 
-    fire_data.show(2)
-    crime_data.show(2)
-
     neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
             .selectExpr('explode(features) as features') \
             .select('features.*') \
@@ -66,26 +63,33 @@ def main():
             .drop('properties') \
             .drop('type')
     
-    # neighborhood_data = neighborhood_data.select(
-    #     col('district').cast(StringType()).alias('district'),
-    #     col('neighborhood').cast(StringType()).alias('neighborhood'),
-    #     col('geometry').cast(StringType()).alias('geometry')
-    # )
+    fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
+    crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
     
-    neighborhood_data.show(2)
+    fire_data_neighb.show(2)
+    crime_data_neighb.show(2)
     
-    dfs = {'fire_data': fire_data, 
-            'crime_data': crime_data, 
-            'neighborhood_data': neighborhood_data}
+    # dfs = {'fire_data': fire_data, 
+    #         'crime_data': crime_data, 
+    #         'neighborhood_data': neighborhood_data}
 
-    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
-    for name, df in dfs.items():
-        df.write.format('bigquery') \
-            .option('table', f'seattle_dataset.{name}') \
-            .mode('overwrite') \
-            .save()
+    # # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
+    # for name, df in dfs.items():
+    #     df.write.format('bigquery') \
+    #         .option('table', f'seattle_dataset.{name}') \
+    #         .mode('overwrite') \
+    #         .save()
 
     spark.stop()
+
+def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
+    point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
+    neighb_df = point_df.join(
+        neighb_info,
+        ST_Within(point_df.point, point_df.geometry)
+    )
+
+    return neighb_df
 
 if __name__ == '__main__':
     main()
