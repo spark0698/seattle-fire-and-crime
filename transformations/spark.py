@@ -66,10 +66,6 @@ def main():
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
     
-    neighborhood_data.printSchema()
-    fire_data_neighb.show(2)
-    crime_data_neighb.show(2)
-    
     # dfs = {'fire_data': fire_data, 
     #         'crime_data': crime_data, 
     #         'neighborhood_data': neighborhood_data}
@@ -87,6 +83,10 @@ def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
     point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
     neighb_df = point_df.alias('point_df') \
         .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry)) 
+
+    point_df.show(2)
+    neighb_info.show(2)
+    neighb_df.show(2)
 
     return neighb_df
 
