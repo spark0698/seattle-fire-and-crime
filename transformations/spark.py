@@ -84,7 +84,7 @@ def main():
     spark.stop()
 
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
-    point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
+    point_df = df.withColumn('point', ST_Point(df.latitude, df.longitude))
     neighb_df = point_df.alias('point_df') \
         .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry)) 
 
