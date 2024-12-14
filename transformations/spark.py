@@ -42,6 +42,7 @@ def main():
     crime_data_neighb.show(2)
 
     dim_neighborhood = read_from_bigquery('dim_neighborhood')
+    dim_neighborhood.show(2)
     
     # dfs = {'fire_data': fire_data, 
     #         'crime_data': crime_data, 
