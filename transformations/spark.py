@@ -73,7 +73,8 @@ def load_data(filename: str, schema_name: StructType) -> DataFrame:
 def read_from_bigquery(table_name: str) -> DataFrame:
     try:
         df = spark.read.format('bigquery') \
-            .option('table', f'seattle_dataset.{table_name}')
+            .option('table', f'seattle_dataset.{table_name}') \
+            .load()
     except Exception as e:
         if 'NotFound' in str(e):
             df = spark.createDataFrame([])
