@@ -29,3 +29,8 @@ crime_schema = StructType([
     StructField('latitude', DecimalType(25, 20), False),
     StructField('offense_end_datetime', TimestampNTZType(), False)
 ])
+
+dim_incident_type_schema = StructType([
+    StructField('incident_type_id', IntegerType(), False),
+    StructField('incident_type_name', StringType(), False)
+])
