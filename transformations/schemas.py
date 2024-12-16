@@ -1,4 +1,5 @@
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
+from sedona.sql.types import GeometryType
 
 fire_schema = StructType([
     StructField('address', StringType(), False),
@@ -53,6 +54,9 @@ all_incidents_schema = StructType([
     StructField('mcpp', StringType(), False),
     StructField('longitude', DecimalType(25, 20), False),
     StructField('latitude', DecimalType(25, 20), False),
+    StructField('geometry', GeometryType(), False),
+    StructField('district', StringType(), False),
+    StructField('neighborhod', StringType(), False)
 ])
 
 dim_incident_type_schema = StructType([

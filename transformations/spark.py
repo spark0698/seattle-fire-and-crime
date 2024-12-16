@@ -39,32 +39,26 @@ def main():
     
     neighborhood_data.printSchema()
     
-    # fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
-    # crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
+    fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
+    crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
 
-    # fire_data_prep = add_missing_columns(fire_data_neighb, s.all_incidents_schema) \
-    #     .select(*s.all_incidents_schema.fieldNames())
-    # crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema) \
-    #     .select(*s.all_incidents_schema.fieldNames())
+    fire_data_prep = add_missing_columns(fire_data_neighb, s.all_incidents_schema) \
+        .select(*s.all_incidents_schema.fieldNames())
+    crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema) \
+        .select(*s.all_incidents_schema.fieldNames())
 
-    # all_incidents = fire_data_prep.union(crime_data_prep)
-    
-    # fire_filter = all_incidents.filter(all_incidents['incident_type'] == 'fire')
-    # crime_filter = all_incidents.filter(all_incidents['incident_type'] == 'crime')
-
-    # fire_filter.show(2)
-    # crime_filter.show(2)
+    all_incidents = fire_data_prep.union(crime_data_prep)
 
     # dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
-    # dim_neighborhood = all_incidents.drop_duplicates([''])
+    dim_neighborhood = all_incidents.drop_duplicates(['geometry', 'district', 'neighborhood'])
 
-    # dim_neighborhood_union = dim_neighborhood_read.union()
+    dim_neighborhood.show(2)
     
     # dfs = {'fire_data': fire_data, 
     #         'crime_data': crime_data, 
     #         'neighborhood_data': neighborhood_data}
 
-    # write_to_bigquery(dfs)
+    write_to_bigquery({'dim_neighborhood': dim_neighborhood})
 
     spark.stop()
 
