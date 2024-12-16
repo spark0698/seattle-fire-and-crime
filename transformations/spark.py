@@ -4,7 +4,7 @@ from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, lit
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
 from uuid import uuid4
-from schemas import fire_schema, crime_schema, dim_incident_type_schema
+import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
 
 import os
@@ -20,11 +20,12 @@ bucket = 'seattle-fire-and-crime'
 spark.conf.set('temporaryGcsBucket', bucket)
 
 def main():
-    fire_data = spark.read.csv(fire_file_path, header = True, schema = fire_schema) \
+    fire_data = spark.read.csv(fire_file_path, header = True, schema = s.fire_schema) \
             .withColumn('incident_type', lit('fire'))
     
-    crime_data = spark.read.csv(crime_file_path, header = True, schema = crime_schema) \
-            .withColumn('incident_type', lit('crime'))
+    crime_data = spark.read.csv(crime_file_path, header = True, schema = s.crime_schema) \
+            .withColumn('incident_type', lit('crime')) \
+            .withColumnRenamed('_100_block_address', 'address')
 
     neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
             .selectExpr('explode(features) as features') \
@@ -37,11 +38,25 @@ def main():
     
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
-    
-    fire_data_neighb.show(2)
-    crime_data_neighb.show(2)
 
-    dim_neighborhood = read_from_bigquery('dim_neighborhood')
+    fire_data_prep = add_missing_columns(fire_data_neighb, s.all_incidents_schema)
+    crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema)
+
+    fire_data_prep.show(2)
+    crime_data_prep.show(2)
+
+    all_incidents = fire_data_prep.union(crime_data_prep)
+    
+    fire = all_incidents.filter(all_incidents['incident_type'] == 'fire')
+    crime = all_incidents.filter(all_incidents['incident_type'] == 'crime')
+
+    fire.show(2)
+    crime.show(2)
+
+    dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
+    # dim_neighborhood = all_incidents.drop_duplicates([''])
+
+    dim_neighborhood_union = dim_neighborhood_read.union()
     
     # dfs = {'fire_data': fire_data, 
     #         'crime_data': crime_data, 
@@ -70,9 +85,14 @@ def load_data(filename: str, schema_name: StructType) -> DataFrame:
         raise Exception('Unsupported filetype load attempted')
 
 def read_from_bigquery(table_name: str) -> DataFrame:
-    df = spark.read.format('bigquery') \
-        .option('table', f'seattle_dataset.{table_name}') \
-        .load()
+    try:
+        df = spark.read.format('bigquery') \
+            .option('table', f'seattle_dataset.{table_name}') \
+            .load()
+    except Exception as e:
+        print(type(e))
+        print(e)
+        df = spark.createDataFrame([], s.dim_neighborhood_schema)
     return df
 
 def write_to_bigquery(dfs: dict):
@@ -89,6 +109,20 @@ def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
         .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry)) 
 
     return neighb_df
+
+def add_missing_columns(df: DataFrame, schema: StructType) -> DataFrame:
+    df_columns = set(df.columns)
+    target_columns = set([field.name for field in schema.fields])
+
+    missing_columns = target_columns - df_columns
+
+    for col in missing_columns:
+        # Find the type of the missing column from the target schema
+        column_type = dict((field.name, field.dataType) for field in schema.fields).get(col)
+        if column_type:
+            df = df.withColumn(col, lit(None).cast(column_type))
+    
+    return df
 
 if __name__ == '__main__':
     main()
