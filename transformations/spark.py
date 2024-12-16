@@ -42,7 +42,6 @@ def main():
     crime_data_neighb.show(2)
 
     dim_neighborhood = read_from_bigquery('dim_neighborhood')
-    dim_neighborhood.show(2)
     
     # dfs = {'fire_data': fire_data, 
     #         'crime_data': crime_data, 
@@ -71,14 +70,9 @@ def load_data(filename: str, schema_name: StructType) -> DataFrame:
         raise Exception('Unsupported filetype load attempted')
 
 def read_from_bigquery(table_name: str) -> DataFrame:
-    try:
-        df = spark.read.format('bigquery') \
-            .option('table', f'seattle_dataset.{table_name}') \
-            .load()
-    except Exception as e:
-        if 'NotFound' in str(e):
-            df = spark.createDataFrame([])
-        raise e
+    df = spark.read.format('bigquery') \
+        .option('table', f'seattle_dataset.{table_name}') \
+        .load()
     return df
 
 def write_to_bigquery(dfs: dict):
