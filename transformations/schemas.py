@@ -56,7 +56,7 @@ all_incidents_schema = StructType([
     StructField('latitude', DecimalType(25, 20), False),
     StructField('geometry', GeometryType(), False),
     StructField('district', StringType(), False),
-    StructField('neighborhod', StringType(), False)
+    StructField('neighborhood', StringType(), False)
 ])
 
 dim_incident_type_schema = StructType([

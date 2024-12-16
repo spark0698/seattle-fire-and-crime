@@ -37,8 +37,6 @@ def main():
             .drop('properties') \
             .drop('type')
     
-    neighborhood_data.printSchema()
-    
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
 
