@@ -25,7 +25,8 @@ def main():
     
     crime_data = spark.read.csv(crime_file_path, header = True, schema = s.crime_schema) \
             .withColumn('incident_type', lit('crime')) \
-            .withColumnRenamed('_100_block_address', 'address')
+            .withColumnRenamed('_100_block_address', 'address') \
+            .withColumnRenamed('offense_start_datetime', 'datetime')
 
     neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
             .selectExpr('explode(features) as features') \
@@ -39,8 +40,10 @@ def main():
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
 
-    fire_data_prep = add_missing_columns(fire_data_neighb, s.all_incidents_schema)
-    crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema)
+    fire_data_prep = add_missing_columns(fire_data_neighb, s.all_incidents_schema) \
+        .select(*s.all_incidents_schema.fieldNames())
+    crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema) \
+        .select(*s.all_incidents_schema.fieldNames())
 
     fire_data_prep.show(2)
     crime_data_prep.show(2)
