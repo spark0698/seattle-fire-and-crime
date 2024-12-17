@@ -37,6 +37,7 @@ def main():
             .drop('properties') \
             .drop('type')
     
+    # Add neighborhood data
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
 
@@ -45,22 +46,27 @@ def main():
     crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema) \
         .select(*s.all_incidents_schema.fieldNames())
 
+    # Combine all incident data
     all_incidents = fire_data_prep.union(crime_data_prep)
 
-    # dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
+    # Update dim_neighborhood with any unique neighborhoods in incidents
+    dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
     dim_neighborhood = all_incidents \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
         .withColumn('geometry', ST_AsText(col('geometry'))) \
         .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
         .select(*s.dim_neighborhood_schema.fieldNames())
-
-    dim_neighborhood.show(2)
     
-    # dfs = {'fire_data': fire_data, 
-    #         'crime_data': crime_data, 
-    #         'neighborhood_data': neighborhood_data}
+    dim_neighborhood_union = dim_neighborhood_read.union(dim_neighborhood)
 
-    write_to_bigquery({'dim_neighborhood': dim_neighborhood})
+    # Create fact table
+    fact_incident = all_incidents.join(dim_neighborhood_union, ['geometry', 'district', 'neighborhood'], 'left') \
+        .drop('geometry', 'district', 'neighborhood')
+
+    dfs = {'dim_neighborhood': dim_neighborhood_union, 
+        'fact_incident': fact_incident}
+
+    write_to_bigquery(dfs, 'overwrite')
 
     spark.stop()
 
@@ -93,12 +99,12 @@ def read_from_bigquery(table_name: str) -> DataFrame:
         df = spark.createDataFrame([], s.dim_neighborhood_schema)
     return df
 
-def write_to_bigquery(dfs: dict):
+def write_to_bigquery(dfs: dict, m: str):
     # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
     for name, df in dfs.items():
         df.write.format('bigquery') \
             .option('table', f'seattle_dataset.{name}') \
-            .mode('overwrite') \
+            .mode(m) \
             .save()
 
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
