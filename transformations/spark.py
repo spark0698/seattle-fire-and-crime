@@ -86,13 +86,20 @@ def main():
 
     # Create fact table
     print('Creating fact_incident table')
-    fact_incident = all_incidents \
-        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
-        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime']) \
-        .join(dim_incident_type, 'incident_type') \
+    pre1_fact_incident = all_incidents \
+        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left')
+    
+    pre2_fact_incident = pre1_fact_incident \
+        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left')
+    
+    fact_incident = pre2_fact_incident \
+        .join(dim_incident_type, 'incident_type', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
+    
+    row_count_pre1 = pre1_fact_incident.count()
+    row_count_pre2 = pre2_fact_incident.count()
     row_count_fact = fact_incident.count()
-    print(f'fact rows {row_count_fact}')
+    print(f'fact rows {row_count_pre1}, {row_count_pre2}, {row_count_fact}')
 
     dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
