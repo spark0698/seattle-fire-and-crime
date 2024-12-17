@@ -38,6 +38,7 @@ def main():
             .drop('type')
     
     # Add neighborhood data
+    print('Adding neighborhood data to fire and crime')
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
 
@@ -47,25 +48,29 @@ def main():
         .select(*s.all_incidents_schema.fieldNames())
 
     # Combine all incident data
-    all_incidents = fire_data_prep.union(crime_data_prep) \
-        .withColumn('geometry', ST_AsText(col('geometry'))) 
+    print('Combining fire and crime data')
+    all_incidents = fire_data_prep.union(crime_data_prep)
 
+    print('Creating dim_neighborhood table')
     dim_neighborhood = all_incidents \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
         .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
         .select(*s.dim_neighborhood_schema.fieldNames())
     
-    dim_neighborhood.show(2)
+    dim_neighborhood_wkt = dim_neighborhood.withColumn('geometry', ST_AsText(col('geometry')))
+
+    dim_neighborhood_wkt.show(2)
 
     # Create fact table
-    fact_incident = all_incidents.join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
+    print('Creating fact_incident table')
+    fact_incident = all_incidents.join(dim_neighborhood_wkt, ['geometry', 'district', 'neighborhood'], 'left') \
         .drop('geometry', 'district', 'neighborhood')
     
     fact_incident.show(2)
 
     # Merge dim tables
     print('Attempting to merge dim_neighborhood DF with BQ table')
-    merge_with_bq_table('dim_neighborhood', dim_neighborhood)
+    merge_with_bq_table('dim_neighborhood', dim_neighborhood_wkt)
     print('Successfully merged')
 
     # Write fact table
