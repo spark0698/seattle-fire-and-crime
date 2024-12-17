@@ -87,10 +87,10 @@ def main():
         .join(dim_incident_type, 'incident_type') \
         .select(*s.fact_incident_schema.fieldNames())
 
-    dfs = {'fact_incident': fact_incident,
+    dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
-           'dim_incident_type': dim_incident_type,
-           'dim_date': dim_date}
+           'dim_date': dim_date,
+           'fact_incident': fact_incident}
 
     # Write fact table
     print('Writing to bigquery')
@@ -131,6 +131,7 @@ def write_to_bigquery(dfs: dict, m: str):
     # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
     for name, df in dfs.items():
         df.write.format('bigquery') \
+            .option('writeMethod', 'direct') \
             .mode(m) \
             .save(f'seattle_dataset.{name}')
 
