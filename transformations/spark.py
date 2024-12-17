@@ -59,6 +59,7 @@ def main():
     print('Creating dim_date')
     dim_date = all_incidents \
         .select('datetime', 'offense_end_datetime', 'report_datetime') \
+        .drop_duplicates(['datetime']) \
         .withColumn('date_id', F.monotonically_increasing_id()) \
         .withColumn('year', F.year('datetime')) \
         .withColumn('month', F.month('datetime')) \
