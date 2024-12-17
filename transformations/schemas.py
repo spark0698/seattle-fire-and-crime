@@ -66,7 +66,7 @@ dim_incident_type_schema = StructType([
 
 dim_neighborhood_schema = StructType([
     StructField('neighborhood_id', IntegerType(), False),
-    StructField('district_name', StringType(), False),
-    StructField('neighborhood_name', StringType(), False),
-    StructField('neighborhood_wkt', StringType(), False)
+    StructField('district', StringType(), False),
+    StructField('neighborhood', StringType(), False),
+    StructField('geometry', StringType(), False)
 ])

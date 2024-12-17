@@ -1,7 +1,7 @@
 from sedona.spark import *
 from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, lit
+from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, lit, concat
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
 from uuid import uuid4
 import schemas as s
@@ -48,7 +48,11 @@ def main():
     all_incidents = fire_data_prep.union(crime_data_prep)
 
     # dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
-    dim_neighborhood = all_incidents.drop_duplicates(['geometry', 'district', 'neighborhood'])
+    dim_neighborhood = all_incidents \
+        .drop_duplicates(['geometry', 'district', 'neighborhood']) \
+        .withColumn('geometry', ST_AsText(col('geometry'))) \
+        .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
+        .select(*s.dim_neighborhood_schema.fieldNames())
 
     dim_neighborhood.show(2)
     
