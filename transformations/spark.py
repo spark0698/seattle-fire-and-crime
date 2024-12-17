@@ -68,7 +68,7 @@ def main():
         .withColumn('week_of_year', F.weekofyear('datetime')) \
         .withColumn('weekday_name', F.date_format('datetime', 'EEEE')) \
         .withColumn('month_name', F.date_format('datetime', 'MMMM')) \
-        .withColumn('quarter', ((F.month('datetime') - 1) // 3) + 1) \
+        .withColumn('quarter', F.floor((F.month('datetime') - 1) / 3) + 1) \
         .select(*s.dim_date_schema.fieldNames())
 
     # Create dim_incident_type
