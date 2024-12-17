@@ -3,6 +3,8 @@ from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, lit, concat, hash
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
+from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
 from uuid import uuid4
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
@@ -14,6 +16,10 @@ spark = SparkSession.builder.appName('SeattleIncidents') \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
+
+client = bigquery.Client()
+project_id = 'seattle-fire-and-crime'
+dataset_id = 'seattle_dataset'
 
 # Temporary GCS bucket for BigQuery export data
 bucket = 'seattle-fire-and-crime'
@@ -50,23 +56,26 @@ def main():
     all_incidents = fire_data_prep.union(crime_data_prep) \
         .withColumn('geometry', ST_AsText(col('geometry'))) 
 
-    # Update dim_neighborhood with any unique neighborhoods in incidents
-    dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
     dim_neighborhood = all_incidents \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
         .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
         .select(*s.dim_neighborhood_schema.fieldNames())
     
-    dim_neighborhood_union = dim_neighborhood_read.union(dim_neighborhood)
+    dim_neighborhood.show(2)
 
     # Create fact table
-    fact_incident = all_incidents.join(dim_neighborhood_union, ['geometry', 'district', 'neighborhood'], 'left') \
+    fact_incident = all_incidents.join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
         .drop('geometry', 'district', 'neighborhood')
+    
+    fact_incident.show(2)
 
-    dfs = {'dim_neighborhood': dim_neighborhood_union, 
-        'fact_incident': fact_incident}
+    # Merge dim tables
+    print('Attempting to merge dim_neighborhood DF with BQ table')
+    merge_with_bq_table('dim_neighborhood', dim_neighborhood)
+    print('Successfully merged')
 
-    write_to_bigquery(dfs, 'overwrite')
+    # Write fact table
+    write_to_bigquery({'fact_incident': fact_incident}, 'overwrite')
 
     spark.stop()
 
@@ -127,6 +136,48 @@ def add_missing_columns(df: DataFrame, schema: StructType) -> DataFrame:
             df = df.withColumn(col, lit(None).cast(column_type))
     
     return df
+
+def bq_table_exists(table_name: str) -> bool:
+    table_id = table_name
+
+    dataset_ref = client.dataset(dataset_id, project=project_id)
+    table_ref = dataset_ref.table(table_id)
+
+    try:
+        # Try to get table metadata
+        client.get_table(table_ref)
+        return True
+    except NotFound:
+        return False
+
+def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
+    table_id = table_name
+    df.createOrReplaceTempView('df_temp')
+
+    columns = df.columns
+
+    primary_key = columns[0]
+    # Construct the SQL query dynamically
+    set_clause = ", ".join([f"target.{col} = source.{col}" for col in columns if col != primary_key])
+    insert_columns = ", ".join(columns)
+    insert_values = ", ".join([f"source.{col}" for col in columns])
+
+    if bq_table_exists(table_id):
+        print('Merging with BQ table')
+        merge_query = f'''
+            MERGE INTO {project_id}.{dataset_id}.{table_id} AS target
+            USING df_temp AS source
+            ON target.{primary_key} = source.{primary_key}
+            WHEN MATCHED THEN
+                UPDATE SET {set_clause}
+            WHEN NOT MATCHED THEN
+                INSERT ({insert_columns}) VALUES ({insert_values})
+        '''
+
+        spark.sql(merge_query)
+    else:
+        print(f'Writing new {table_name} table to BQ')
+        write_to_bigquery({f'{table_name}', table_name}, 'overwrite')
 
 if __name__ == '__main__':
     main()
