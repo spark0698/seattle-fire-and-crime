@@ -8,6 +8,8 @@ import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
+    .config("spark.sql.catalogImplementation", "in-memory") \
+    .config("spark.sql.legacy.createHiveTableByDefault", "false") \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
