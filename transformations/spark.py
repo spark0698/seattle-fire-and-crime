@@ -51,7 +51,7 @@ def main():
     dim_neighborhood = all_incidents \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
         .withColumn('geometry', ST_AsText(col('geometry'))) \
-        .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
+        .withColumn('neighborhood_id', hash(['geometry', 'district', 'neighborhood'])) \
         .select(*s.dim_neighborhood_schema.fieldNames())
 
     dim_neighborhood.show(2)
