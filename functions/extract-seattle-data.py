@@ -8,6 +8,7 @@ from datetime import datetime
 
 crime_endpoint = 'https://data.seattle.gov/resource/tazs-3rd5.json'
 fire_endpoint = 'https://data.seattle.gov/resource/kzjm-xkqj.json'
+neighborhood_endpoint = 'https://services.arcgis.com/ZOyb2t4B0UYuYNYH/arcgis/rest/services/nma_nhoods_sub/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson'
 
 @functions_framework.http
 def extract_data(request: Request) -> Response:
@@ -23,6 +24,8 @@ def extract_data(request: Request) -> Response:
         elif endpoint == 'fire':
             base = fire_endpoint
             orderby = 'datetime'
+        elif endpoint == 'neighborhood':
+            base = neighborhood_endpoint
         else:
             abort(400, 'Invalid endpoint query parameter')
 

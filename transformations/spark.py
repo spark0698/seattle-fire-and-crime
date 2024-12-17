@@ -1,15 +1,13 @@
 from sedona.spark import *
 from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, lit, concat, hash
+import pyspark.sql.functions as F
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
 from uuid import uuid4
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
-    .config("spark.sql.catalogImplementation", "in-memory") \
-    .config("spark.sql.legacy.createHiveTableByDefault", "false") \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
@@ -23,19 +21,19 @@ spark.conf.set('temporaryGcsBucket', bucket)
 
 def main():
     fire_data = spark.read.csv(fire_file_path, header = True, schema = s.fire_schema) \
-            .withColumn('incident_type', lit('fire'))
+            .withColumn('incident_type', F.lit('fire'))
     
     crime_data = spark.read.csv(crime_file_path, header = True, schema = s.crime_schema) \
-            .withColumn('incident_type', lit('crime')) \
+            .withColumn('incident_type', F.lit('crime')) \
             .withColumnRenamed('_100_block_address', 'address') \
             .withColumnRenamed('offense_start_datetime', 'datetime')
 
     neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
             .selectExpr('explode(features) as features') \
             .select('features.*') \
-            .withColumn('district', expr("properties['L_HOOD']")) \
-            .withColumn('neighborhood', expr("properties['S_HOOD']")) \
-            .withColumn('geometry', col('geometry')) \
+            .withColumn('district', F.expr("properties['L_HOOD']")) \
+            .withColumn('neighborhood', F.expr("properties['S_HOOD']")) \
+            .withColumn('geometry', F.col('geometry')) \
             .drop('properties') \
             .drop('type')
     
@@ -53,30 +51,57 @@ def main():
     print('Combining fire and crime data')
     all_incidents = fire_data_prep.union(crime_data_prep)
 
+    # Create dim_neighborhood
     print('Creating dim_neighborhood table')
-    dim_neighborhood = all_incidents \
+    dim_neighborhood = neighborhood_data \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
-        .withColumn('neighborhood_id', hash(concat(col('district'), col('neighborhood')))) \
+        .withColumn('neighborhood_id', F.hash(F.concat(F.col('district'), F.col('neighborhood')))) \
         .select(*s.dim_neighborhood_schema.fieldNames())
     
-    dim_neighborhood_wkt = dim_neighborhood.withColumn('geometry', ST_AsText(col('geometry')))
+    dim_neighborhood_wkt = dim_neighborhood.withColumn('geometry', ST_AsText(F.col('geometry')))
 
-    dim_neighborhood_wkt.show(2)
+    # Create dim_date
+    print('Creating dim_date')
+    dim_date = all_incidents \
+        .select('datetime', 'offense_end_datetime', 'report_datetime') \
+        .withColumn('date_id', F.monotonically_increasing_id()) \
+        .withColumn('year', F.year('timestamp')) \
+        .withColumn('month', F.month('timestamp')) \
+        .withColumn('day', F.dayofmonth('timestamp')) \
+        .withColumn('hour', F.hour('timestamp')) \
+        .withColumn('minute', F.minute('timestamp')) \
+        .withColumn('second', F.second('timestamp')) \
+        .withColumn('day_of_week', F.dayofweek('timestamp')) \
+        .withColumn('week_of_year', F.weekofyear('timestamp')) \
+        .withColumn('weekday_name', F.date_format('timestamp', 'EEEE')) \
+        .withColumn('month_name', F.date_format('timestamp', 'MMMM')) \
+        .withColumn('quarter', ((F.month('timestamp') - 1) // 3) + 1) \
+        .select(*s.dim_date_schema.fieldNames())
+
+    # Create dim_incident_type
+    print('Creating dim_incident_type')
+    dim_incident_type = all_incidents \
+        .select('incident_type') \
+        .withColumn('incident_type_id', F.monotonically_increasing_id()) \
+        .distinct() \
+        .select(*s.dim_incident_type_schema.fieldNames())     
 
     # Create fact table
     print('Creating fact_incident table')
-    fact_incident = all_incidents.join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
-        .drop('geometry', 'district', 'neighborhood')
-    
-    fact_incident.show(2)
+    fact_incident = all_incidents \
+        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
+        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime']) \
+        .join(dim_incident_type, 'incident_type') \
+        .select(*s.fact_incident_schema.fieldNames())
 
-    # Merge dim tables
-    print('Attempting to merge dim_neighborhood DF with BQ table')
-    merge_with_bq_table('dim_neighborhood', dim_neighborhood_wkt)
-    print('Successfully merged')
+    dfs = {'fact_incident': fact_incident,
+           'dim_neighborhood': dim_neighborhood_wkt,
+           'dim_incident_type': dim_incident_type,
+           'dim_date': dim_date}
 
     # Write fact table
-    write_to_bigquery({'fact_incident': fact_incident}, 'overwrite')
+    print('Writing to bigquery')
+    write_to_bigquery(dfs, 'overwrite')
 
     spark.stop()
 
@@ -88,9 +113,9 @@ def load_data(filename: str, schema_name: StructType) -> DataFrame:
         df = sedona.read.format('geojson').option('multiLine', 'true').load(filename) \
                 .selectExpr('explode(features) as features') \
                 .select('features.*') \
-                .withColumn('district', expr("properties['L_HOOD']")) \
-                .withColumn('neighborhood', expr("properties['S_HOOD']")) \
-                .withColumn('geometry', col('geometry')) \
+                .withColumn('district', F.expr("properties['L_HOOD']")) \
+                .withColumn('neighborhood', F.expr("properties['S_HOOD']")) \
+                .withColumn('geometry', F.col('geometry')) \
                 .drop('properties') \
                 .drop('type')
         
@@ -113,9 +138,8 @@ def write_to_bigquery(dfs: dict, m: str):
     # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
     for name, df in dfs.items():
         df.write.format('bigquery') \
-            .option('table', f'seattle_dataset.{name}') \
             .mode(m) \
-            .save()
+            .save(f'seattle_dataset.{name}')
 
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
     point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
@@ -134,44 +158,9 @@ def add_missing_columns(df: DataFrame, schema: StructType) -> DataFrame:
         # Find the type of the missing column from the target schema
         column_type = dict((field.name, field.dataType) for field in schema.fields).get(col)
         if column_type:
-            df = df.withColumn(col, lit(None).cast(column_type))
+            df = df.withColumn(col, F.lit(None).cast(column_type))
     
     return df
-
-def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
-    table_id = table_name
-    df.createOrReplaceTempView('df_temp')
-
-    columns = df.columns
-
-    primary_key = columns[0]
-    # Construct the SQL query dynamically
-    set_clause = ", ".join([f"target.{col} = source.{col}" for col in columns if col != primary_key])
-    insert_columns = ", ".join(columns)
-    insert_values = ", ".join([f"source.{col}" for col in columns])
-
-    create_query = f'''CREATE TABLE IF NOT EXISTS `{project_id}.{dataset_id}.{table_id}`
-        (
-            neighborhood_id INTEGER,
-            district STRING,
-            neighborhood STRING,
-            geometry STRING
-        );
-    '''
-    spark.sql(create_query)
-
-    print('Merging with BQ table')
-    merge_query = f'''
-        MERGE INTO `{project_id}.{dataset_id}.{table_id}` AS target
-        USING df_temp AS source
-        ON target.{primary_key} = source.{primary_key}
-        WHEN MATCHED THEN
-            UPDATE SET {set_clause}
-        WHEN NOT MATCHED THEN
-            INSERT ({insert_columns}) VALUES ({insert_values})
-    '''
-
-    spark.sql(merge_query)
 
 if __name__ == '__main__':
     main()
