@@ -47,13 +47,13 @@ def main():
         .select(*s.all_incidents_schema.fieldNames())
 
     # Combine all incident data
-    all_incidents = fire_data_prep.union(crime_data_prep)
+    all_incidents = fire_data_prep.union(crime_data_prep) \
+        .withColumn('geometry', ST_AsText(col('geometry'))) 
 
     # Update dim_neighborhood with any unique neighborhoods in incidents
     dim_neighborhood_read = read_from_bigquery('dim_neighborhood')
     dim_neighborhood = all_incidents \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
-        .withColumn('geometry', ST_AsText(col('geometry'))) \
         .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
         .select(*s.dim_neighborhood_schema.fieldNames())
     
