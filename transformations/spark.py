@@ -150,7 +150,7 @@ def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
 
     create_query = f'''CREATE TABLE IF NOT EXISTS `{project_id}`.`{dataset_id}`.`{table_id}`
         (
-            neighborhood_id INT64,
+            neighborhood_id INTEGER,
             district STRING,
             neighborhood STRING,
             geometry STRING
