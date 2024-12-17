@@ -3,21 +3,15 @@ from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import col, year, month, dayofmonth, hour, minute, unix_timestamp, expr, lit, concat, hash
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
-from google.cloud import bigquery
-from google.cloud.exceptions import NotFound
 from uuid import uuid4
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
-
-import os
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = '/Users/heepark/Sean/seattle-fire-and-crime/gcp/seattle-fire-and-crime-9ee8045e549b.json'
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
     .getOrCreate()
 
 sedona = SedonaContext.create(spark)
 
-client = bigquery.Client()
 project_id = 'seattle-fire-and-crime'
 dataset_id = 'seattle_dataset'
 
@@ -137,19 +131,6 @@ def add_missing_columns(df: DataFrame, schema: StructType) -> DataFrame:
     
     return df
 
-def bq_table_exists(table_name: str) -> bool:
-    table_id = table_name
-
-    dataset_ref = client.dataset(dataset_id, project=project_id)
-    table_ref = dataset_ref.table(table_id)
-
-    try:
-        # Try to get table metadata
-        client.get_table(table_ref)
-        return True
-    except NotFound:
-        return False
-
 def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
     table_id = table_name
     df.createOrReplaceTempView('df_temp')
@@ -162,22 +143,28 @@ def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
     insert_columns = ", ".join(columns)
     insert_values = ", ".join([f"source.{col}" for col in columns])
 
-    if bq_table_exists(table_id):
-        print('Merging with BQ table')
-        merge_query = f'''
-            MERGE INTO {project_id}.{dataset_id}.{table_id} AS target
-            USING df_temp AS source
-            ON target.{primary_key} = source.{primary_key}
-            WHEN MATCHED THEN
-                UPDATE SET {set_clause}
-            WHEN NOT MATCHED THEN
-                INSERT ({insert_columns}) VALUES ({insert_values})
-        '''
+    create_query = f'''CREATE TABLE IF NOT EXISTS {project_id}.{dataset_id}.{table_id}
+        (
+            neighborhood_id INT64,
+            district STRING,
+            neighborhood STRING,
+            geometry STRING
+        );
+    '''
+    spark.sql(create_query)
 
-        spark.sql(merge_query)
-    else:
-        print(f'Writing new {table_name} table to BQ')
-        write_to_bigquery({f'{table_name}', table_name}, 'overwrite')
+    print('Merging with BQ table')
+    merge_query = f'''
+        MERGE INTO {project_id}.{dataset_id}.{table_id} AS target
+        USING df_temp AS source
+        ON target.{primary_key} = source.{primary_key}
+        WHEN MATCHED THEN
+            UPDATE SET {set_clause}
+        WHEN NOT MATCHED THEN
+            INSERT ({insert_columns}) VALUES ({insert_values})
+    '''
+
+    spark.sql(merge_query)
 
 if __name__ == '__main__':
     main()
