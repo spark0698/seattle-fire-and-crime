@@ -54,7 +54,7 @@ def main():
     print('Creating dim_neighborhood table')
     dim_neighborhood = all_incidents \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
-        .withColumn('neighborhood_id', hash(concat(col('geometry'), col('district'), col('neighborhood')))) \
+        .withColumn('neighborhood_id', hash(concat(col('district'), col('neighborhood')))) \
         .select(*s.dim_neighborhood_schema.fieldNames())
     
     dim_neighborhood_wkt = dim_neighborhood.withColumn('geometry', ST_AsText(col('geometry')))
