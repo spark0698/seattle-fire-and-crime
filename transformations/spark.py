@@ -18,6 +18,7 @@ dataset_id = 'seattle_dataset'
 # Temporary GCS bucket for BigQuery export data
 bucket = 'seattle-fire-and-crime'
 spark.conf.set('temporaryGcsBucket', bucket)
+spark.conf.set("spark.sql.adaptive.enabled", "true")
 
 def main():
     fire_data = load_data(fire_file_path, s.fire_schema) \
@@ -86,20 +87,14 @@ def main():
 
     # Create fact table
     print('Creating fact_incident table')
-    pre1_fact_incident = all_incidents \
-        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left')
-    
-    pre2_fact_incident = pre1_fact_incident \
-        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left')
-    
-    fact_incident = pre2_fact_incident \
+    fact_incident = all_incidents \
+        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
+        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left') \
         .join(dim_incident_type, 'incident_type', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
     
-    row_count_pre1 = pre1_fact_incident.count()
-    row_count_pre2 = pre2_fact_incident.count()
     row_count_fact = fact_incident.count()
-    print(f'fact rows {row_count_pre1}, {row_count_pre2}, {row_count_fact}')
+    print(f'fact rows {row_count_fact}')
 
     dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
