@@ -148,7 +148,7 @@ def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
     insert_columns = ", ".join(columns)
     insert_values = ", ".join([f"source.{col}" for col in columns])
 
-    create_query = f'''CREATE TABLE IF NOT EXISTS {project_id}.{dataset_id}.{table_id}
+    create_query = f'''CREATE TABLE IF NOT EXISTS `{project_id}`.`{dataset_id}`.`{table_id}`
         (
             neighborhood_id INT64,
             district STRING,
@@ -160,7 +160,7 @@ def merge_with_bq_table(table_name: str, df: DataFrame) -> None:
 
     print('Merging with BQ table')
     merge_query = f'''
-        MERGE INTO {project_id}.{dataset_id}.{table_id} AS target
+        MERGE INTO `{project_id}`.`{dataset_id}`.`{table_id}` AS target
         USING df_temp AS source
         ON target.{primary_key} = source.{primary_key}
         WHEN MATCHED THEN
