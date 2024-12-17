@@ -63,7 +63,7 @@ def main():
 
     # Create fact table
     print('Creating fact_incident table')
-    fact_incident = all_incidents.join(dim_neighborhood_wkt, ['geometry', 'district', 'neighborhood'], 'left') \
+    fact_incident = all_incidents.join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
         .drop('geometry', 'district', 'neighborhood')
     
     fact_incident.show(2)
