@@ -43,6 +43,8 @@ def main():
     # Combine all incident data
     print('Combining fire and crime data')
     all_incidents = fire_data_prep.union(crime_data_prep)
+    total_incident_count = all_incidents.count()
+    print(f'total incidents pre star {total_incident_count}')
 
     # Create dim_neighborhood
     print('Creating dim_neighborhood table')
@@ -75,9 +77,11 @@ def main():
     print('Creating dim_incident_type')
     dim_incident_type = all_incidents \
         .select('incident_type') \
-        .withColumn('incident_type_id', F.monotonically_increasing_id()) \
         .distinct() \
-        .select(*s.dim_incident_type_schema.fieldNames())     
+        .withColumn('incident_type_id', F.monotonically_increasing_id()) \
+        .select(*s.dim_incident_type_schema.fieldNames()) 
+    row_count_incident = dim_incident_type.count()
+    print(f'dim_incident_type rows {row_count_incident}')    
 
     # Create fact table
     print('Creating fact_incident table')
@@ -86,6 +90,8 @@ def main():
         .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime']) \
         .join(dim_incident_type, 'incident_type') \
         .select(*s.fact_incident_schema.fieldNames())
+    row_count_fact = fact_incident.count()
+    print(f'fact rows {row_count_fact}')
 
     dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
