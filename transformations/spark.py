@@ -2,7 +2,7 @@ from sedona.spark import *
 from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
+from pyspark.sql.types import StructType
 from uuid import uuid4
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
@@ -20,22 +20,15 @@ bucket = 'seattle-fire-and-crime'
 spark.conf.set('temporaryGcsBucket', bucket)
 
 def main():
-    fire_data = spark.read.csv(fire_file_path, header = True, schema = s.fire_schema) \
-            .withColumn('incident_type', F.lit('fire'))
-    
-    crime_data = spark.read.csv(crime_file_path, header = True, schema = s.crime_schema) \
-            .withColumn('incident_type', F.lit('crime')) \
-            .withColumnRenamed('_100_block_address', 'address') \
-            .withColumnRenamed('offense_start_datetime', 'datetime')
+    fire_data = load_data(fire_file_path, s.fire_schema) \
+        .withColumn('incident_type', F.lit('fire'))
 
-    neighborhood_data = sedona.read.format('geojson').option('multiLine', 'true').load(neighborhood_file_path) \
-            .selectExpr('explode(features) as features') \
-            .select('features.*') \
-            .withColumn('district', F.expr("properties['L_HOOD']")) \
-            .withColumn('neighborhood', F.expr("properties['S_HOOD']")) \
-            .withColumn('geometry', F.col('geometry')) \
-            .drop('properties') \
-            .drop('type')
+    crime_data = load_data(crime_file_path, s.crime_schema) \
+        .withColumn('incident_type', F.lit('crime')) \
+        .withColumnRenamed('_100_block_address', 'address') \
+        .withColumnRenamed('offense_start_datetime', 'datetime')
+
+    neighborhood_data = load_data(neighborhood_file_path, s.dim_neighborhood_schema)
     
     # Add neighborhood data
     print('Adding neighborhood data to fire and crime')
@@ -65,17 +58,17 @@ def main():
     dim_date = all_incidents \
         .select('datetime', 'offense_end_datetime', 'report_datetime') \
         .withColumn('date_id', F.monotonically_increasing_id()) \
-        .withColumn('year', F.year('timestamp')) \
-        .withColumn('month', F.month('timestamp')) \
-        .withColumn('day', F.dayofmonth('timestamp')) \
-        .withColumn('hour', F.hour('timestamp')) \
-        .withColumn('minute', F.minute('timestamp')) \
-        .withColumn('second', F.second('timestamp')) \
-        .withColumn('day_of_week', F.dayofweek('timestamp')) \
-        .withColumn('week_of_year', F.weekofyear('timestamp')) \
-        .withColumn('weekday_name', F.date_format('timestamp', 'EEEE')) \
-        .withColumn('month_name', F.date_format('timestamp', 'MMMM')) \
-        .withColumn('quarter', ((F.month('timestamp') - 1) // 3) + 1) \
+        .withColumn('year', F.year('datetime')) \
+        .withColumn('month', F.month('datetime')) \
+        .withColumn('day', F.dayofmonth('datetime')) \
+        .withColumn('hour', F.hour('datetime')) \
+        .withColumn('minute', F.minute('datetime')) \
+        .withColumn('second', F.second('datetime')) \
+        .withColumn('day_of_week', F.dayofweek('datetime')) \
+        .withColumn('week_of_year', F.weekofyear('datetime')) \
+        .withColumn('weekday_name', F.date_format('datetime', 'EEEE')) \
+        .withColumn('month_name', F.date_format('datetime', 'MMMM')) \
+        .withColumn('quarter', ((F.month('datetime') - 1) // 3) + 1) \
         .select(*s.dim_date_schema.fieldNames())
 
     # Create dim_incident_type
