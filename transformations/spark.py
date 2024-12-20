@@ -87,8 +87,8 @@ def main():
     print('Creating fact_incident table')
 
     join_condition = (
-        (all_incidents['datetime'] == dim_date['datetime']) | 
-        (all_incidents['datetime'].isNull() & dim_date['datetime'].isNull())
+        (F.col('all_incidents.datetime') == F.col('dim_date.datetime')) | 
+        (F.col('all_incidents.datetime').isNull() & F.col('dim_date.datetime').isNull())
     )
 
     fact_incident = all_incidents \
