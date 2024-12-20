@@ -87,19 +87,27 @@ def main():
 
     # Create fact table
     print('Creating fact_incident table')
-    fact_incident = all_incidents \
-        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
-        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left') \
+    fact_incident1 = all_incidents \
+        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left')
+    
+    fact_incident2 = fact_incident1 \
+        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left')
+    
+    fact_incident3 = fact_incident2 \
         .join(dim_incident_type, 'incident_type', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
     
-    row_count_fact = fact_incident.count()
-    print(f'fact rows {row_count_fact}')
+    fact1_count = fact_incident1.count()
+    fact2_count = fact_incident2.count()
+    fact3_count = fact_incident3.count()
+    print(f'fact rows after neighborhood join {fact1_count}')
+    print(f'fact rows after datetime join {fact2_count}')
+    print(f'fact rows after incident type join {fact3_count}')
 
     dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
            'dim_date': dim_date,
-           'fact_incident': fact_incident}
+           'fact_incident': fact_incident3}
 
     # Write fact table
     print('Writing to bigquery')
@@ -147,7 +155,7 @@ def write_to_bigquery(dfs: dict, m: str):
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
     point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
     neighb_df = point_df.alias('point_df') \
-        .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry)) 
+        .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry), 'left') 
 
     return neighb_df
 
