@@ -159,7 +159,7 @@ def write_to_bigquery(dfs: dict, m: str):
 def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
     point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
     neighb_df = point_df.alias('point_df') \
-        .join(neighb_info.alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry), 'left') 
+        .join(F.broadcast(neighb_info).alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry), 'left') 
 
     return neighb_df
 
