@@ -57,9 +57,10 @@ def main():
 
     # Create dim_date
     print('Creating dim_date')
+
     dim_date = all_incidents \
-        .select('datetime', 'offense_end_datetime', 'report_datetime') \
-        .drop_duplicates(['datetime', 'offense_end_datetime', 'report_datetime']) \
+        .select('datetime') \
+        .drop_duplicates(['datetime']) \
         .withColumn('date_id', F.monotonically_increasing_id()) \
         .withColumn('year', F.year('datetime')) \
         .withColumn('month', F.month('datetime')) \
@@ -84,9 +85,15 @@ def main():
 
     # Create fact table
     print('Creating fact_incident table')
+
+    join_condition = (
+        (all_incidents['datetime'] == fact_incident['datetime']) | 
+        (all_incidents['datetime'].isNull() & fact_incident['datetime'].isNull())
+    )
+
     fact_incident = all_incidents \
+        .join(dim_date, join_condition, 'inner') \
         .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
-        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left') \
         .join(dim_incident_type, 'incident_type', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
 
