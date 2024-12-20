@@ -80,6 +80,8 @@ fact_incident_schema = StructType([
     StructField('sector', StringType(), False),
     StructField('beat', StringType(), False),
     StructField('mcpp', StringType(), False),
+    StructField('offense_end_datetime', TimestampNTZType(), False),     # Crime Only offense end datetime
+    StructField('report_datetime', TimestampNTZType(), False),          # Crime Only reported datetime
     StructField('longitude', DecimalType(25, 20), False),
     StructField('latitude', DecimalType(25, 20), False)
 ])
@@ -99,8 +101,6 @@ dim_neighborhood_schema = StructType([
 dim_date_schema = StructType([
     StructField('date_id', IntegerType(), False),
     StructField('datetime', TimestampNTZType(), False),                 # Fire datetime and Crime offense start datetime
-    StructField('offense_end_datetime', TimestampNTZType(), False),     # Crime Only offense end datetime
-    StructField('report_datetime', TimestampNTZType(), False),          # Crime Only reported datetime
     StructField('year', IntegerType(), False),                          # Year
     StructField('month', IntegerType(), False),                         # Month (1 to 12)
     StructField('day', IntegerType(), False),                           # Day of the month (1 to 31)
