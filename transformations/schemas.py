@@ -33,6 +33,7 @@ crime_schema = StructType([
 
 # combining crime.offense_start_datetime into datetime, longitude/latitude, address/_100_block_address
 all_incidents_schema = StructType([
+    StructField('incident_id', IntegerType(), False),
     StructField('incident_type', StringType(), False),
     StructField('address', StringType(), False),
     StructField('type', StringType(), False),
@@ -60,6 +61,7 @@ all_incidents_schema = StructType([
 ])
 
 fact_incident_schema = StructType([
+    StructField('incident_id', IntegerType(), False),
     StructField('neighborhood_id', IntegerType(), False),
     StructField('date_id', IntegerType(), False),
     StructField('incident_type_id', IntegerType(), False),

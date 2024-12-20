@@ -40,16 +40,11 @@ def main():
         .select(*s.all_incidents_schema.fieldNames())
     crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema) \
         .select(*s.all_incidents_schema.fieldNames())
-    
-    fire_count = fire_data_neighb.count()
-    crime_count = crime_data_neighb.count()
-    print(f'after neighborhood, fire: {fire_count}, crime: {crime_count}')
 
     # Combine all incident data
     print('Combining fire and crime data')
-    all_incidents = fire_data_prep.union(crime_data_prep)
-    total_incident_count = all_incidents.count()
-    print(f'total incidents pre star {total_incident_count}')
+    all_incidents = fire_data_prep.union(crime_data_prep) \
+        .withColumn('incident_id', F.monotonically_increasing_id())
 
     # Create dim_neighborhood
     print('Creating dim_neighborhood table')
@@ -64,7 +59,7 @@ def main():
     print('Creating dim_date')
     dim_date = all_incidents \
         .select('datetime', 'offense_end_datetime', 'report_datetime') \
-        .drop_duplicates(['datetime']) \
+        .drop_duplicates(['datetime', 'offense_end_datetime', 'report_datetime']) \
         .withColumn('date_id', F.monotonically_increasing_id()) \
         .withColumn('year', F.year('datetime')) \
         .withColumn('month', F.month('datetime')) \
@@ -86,32 +81,19 @@ def main():
         .distinct() \
         .withColumn('incident_type_id', F.monotonically_increasing_id()) \
         .select(*s.dim_incident_type_schema.fieldNames()) 
-    row_count_incident = dim_incident_type.count()
-    print(f'dim_incident_type rows {row_count_incident}')    
 
     # Create fact table
     print('Creating fact_incident table')
-    fact_incident1 = all_incidents \
-        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left')
-    
-    fact_incident2 = fact_incident1 \
-        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left')
-    
-    fact_incident3 = fact_incident2 \
+    fact_incident = all_incidents \
+        .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
+        .join(dim_date, ['datetime', 'offense_end_datetime', 'report_datetime'], 'left') \
         .join(dim_incident_type, 'incident_type', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
-    
-    fact1_count = fact_incident1.count()
-    fact2_count = fact_incident2.count()
-    fact3_count = fact_incident3.count()
-    print(f'fact rows after neighborhood join {fact1_count}')
-    print(f'fact rows after datetime join {fact2_count}')
-    print(f'fact rows after incident type join {fact3_count}')
 
     dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
            'dim_date': dim_date,
-           'fact_incident': fact_incident3}
+           'fact_incident': fact_incident}
 
     # Write fact table
     print('Writing to bigquery')
