@@ -86,13 +86,11 @@ def main():
     # Create fact table
     print('Creating fact_incident table')
 
-    join_condition = (
-        (all_incidents['datetime'] == fact_incident['datetime']) | 
-        (all_incidents['datetime'].isNull() & fact_incident['datetime'].isNull())
-    )
-
     fact_incident = all_incidents \
-        .join(dim_date, join_condition, 'inner') \
+        .join(dim_date, 
+              (all_incidents['datetime'] == fact_incident['datetime']) | 
+              (all_incidents['datetime'].isNull() & fact_incident['datetime'].isNull()), 
+              'inner') \
         .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
         .join(dim_incident_type, 'incident_type', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
