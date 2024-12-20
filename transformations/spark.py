@@ -40,6 +40,10 @@ def main():
         .select(*s.all_incidents_schema.fieldNames())
     crime_data_prep = add_missing_columns(crime_data_neighb, s.all_incidents_schema) \
         .select(*s.all_incidents_schema.fieldNames())
+    
+    fire_count = fire_data_neighb.count()
+    crime_count = crime_data_neighb.count()
+    print(f'after neighborhood, fire: {fire_count}, crime: {crime_count}')
 
     # Combine all incident data
     print('Combining fire and crime data')
