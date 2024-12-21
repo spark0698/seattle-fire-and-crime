@@ -2,8 +2,8 @@ from sedona.spark import *
 from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
 from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType
-from uuid import uuid4
+from pyspark.sql.types import StructType, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
+from typing import Optional
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
 
@@ -25,11 +25,27 @@ def main():
         .withColumn('incident_type', F.lit('fire')) \
         .drop_duplicates(['incident_number'])
 
-    crime_data = load_data(crime_file_path, s.crime_schema) \
+    # Crime data when read from data sometimes has offense_end_datetime value in the wrong column
+    crime_data_initial = load_data(crime_file_path, infer_schema=False) \
         .withColumn('incident_type', F.lit('crime')) \
         .withColumnRenamed('_100_block_address', 'address') \
         .withColumnRenamed('offense_start_datetime', 'datetime') \
         .drop_duplicates(['report_number'])
+    
+    columns = crime_data_initial.columns
+    
+    reorder_row_udf = F.udf(reorder_row_if_needed, F.ArrayType(F.StringType()))
+    df_corrected = crime_data_initial.withColumn('corrected_row', reorder_row_udf(*columns))
+    df_final = df_corrected.selectExpr(
+        ['corrected_row[{}] as {}'.format(i, columns[i]) for i in range(len(columns))]
+    )
+
+    crime_data = df_final \
+        .withColumn('offense_start_datetime', F.col('offense_start_datetime').cast(TimestampNTZType())) \
+        .withColumn('report_datetime', F.col('report_datetime').cast(TimestampNTZType())) \
+        .withColumn('longitude', F.col('longitude').cast(DecimalType(25, 20))) \
+        .withColumn('latitude', F.col('latitude').cast(DecimalType(25, 20))) \
+        .withColumn('offense_end_datetime', F.col('offense_end_datetime').cast(TimestampNTZType()))
 
     neighborhood_data = load_data(neighborhood_file_path, s.dim_neighborhood_schema)
     
@@ -105,10 +121,13 @@ def main():
 
     spark.stop()
 
-def load_data(filename: str, schema_name: StructType) -> DataFrame:
+def load_data(filename: str, schema_name: Optional[StructType], infer_schema: bool = True) -> DataFrame:
     filetype = filename.split('.')[-1]
     if filetype == 'csv':
-        return spark.read.csv(filename, header = True, schema = schema_name)
+        if infer_schema:
+            return spark.read.csv(filename, header = True, schema = schema_name)
+        else:
+            return spark.read.csv(filename, header = True)
     elif filetype == 'geojson':
         df = sedona.read.format('geojson').option('multiLine', 'true').load(filename) \
                 .selectExpr('explode(features) as features') \
@@ -122,6 +141,27 @@ def load_data(filename: str, schema_name: StructType) -> DataFrame:
         return df
     else:
         raise Exception('Unsupported filetype load attempted')
+    
+def reorder_row_if_needed(*args) -> list[str]:
+    values = list(args)
+    is_latitude = False
+
+    if values[-1] is not None:
+        try:
+            # Attempt to convert the last value to a float (latitude)
+            latitude = float(values[-1])  # Latitude is expected to be a decimal number
+            is_latitude = True
+        except ValueError:
+            is_latitude = False
+
+    if is_latitude:
+        temp = values[3]
+        for i in range(4, 17): 
+            values[i - 1] = values[i]
+
+        values[16] = temp
+    
+    return values
 
 def read_from_bigquery(table_name: str) -> DataFrame:
     try:
