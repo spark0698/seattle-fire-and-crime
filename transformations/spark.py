@@ -41,7 +41,7 @@ def main():
     )
 
     crime_data = df_final \
-        .withColumn('offense_start_datetime', F.col('offense_start_datetime').cast(TimestampNTZType())) \
+        .withColumn('datetime', F.col('datetime').cast(TimestampNTZType())) \
         .withColumn('report_datetime', F.col('report_datetime').cast(TimestampNTZType())) \
         .withColumn('longitude', F.col('longitude').cast(DecimalType(25, 20))) \
         .withColumn('latitude', F.col('latitude').cast(DecimalType(25, 20))) \
