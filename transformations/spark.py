@@ -121,7 +121,7 @@ def main():
 
     spark.stop()
 
-def load_data(filename: str, schema_name: Optional[StructType], infer_schema: bool = True) -> DataFrame:
+def load_data(filename: str, schema_name: Optional[StructType] = None, infer_schema: bool = True) -> DataFrame:
     filetype = filename.split('.')[-1]
     if filetype == 'csv':
         if infer_schema:
