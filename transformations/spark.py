@@ -22,12 +22,14 @@ spark.conf.set("spark.sql.adaptive.enabled", "true")
 
 def main():
     fire_data = load_data(fire_file_path, s.fire_schema) \
-        .withColumn('incident_type', F.lit('fire'))
+        .withColumn('incident_type', F.lit('fire')) \
+        .drop_duplicates(['incident_number'])
 
     crime_data = load_data(crime_file_path, s.crime_schema) \
         .withColumn('incident_type', F.lit('crime')) \
         .withColumnRenamed('_100_block_address', 'address') \
-        .withColumnRenamed('offense_start_datetime', 'datetime')
+        .withColumnRenamed('offense_start_datetime', 'datetime') \
+        .drop_duplicates(['report_number'])
 
     neighborhood_data = load_data(neighborhood_file_path, s.dim_neighborhood_schema)
     
