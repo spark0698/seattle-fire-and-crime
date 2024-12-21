@@ -1,8 +1,8 @@
 from sedona.spark import *
-from sedona.sql import ST_GeomFromGeoJSON, ST_AsText
+from sedona.sql import ST_AsText
 from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, StringType, IntegerType, DecimalType, TimestampNTZType, BinaryType
+from pyspark.sql.types import StructType, DecimalType, TimestampNTZType
 from typing import Optional
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
@@ -27,7 +27,6 @@ def main():
 
     # Crime data when read from data sometimes has offense_end_datetime value in the wrong column
     crime_data_initial = load_data(crime_file_path, infer_schema=False) \
-        .withColumn('incident_type', F.lit('crime')) \
         .withColumnRenamed('_100_block_address', 'address') \
         .withColumnRenamed('offense_start_datetime', 'datetime') \
         .drop_duplicates(['report_number'])
@@ -45,7 +44,8 @@ def main():
         .withColumn('report_datetime', F.col('report_datetime').cast(TimestampNTZType())) \
         .withColumn('longitude', F.col('longitude').cast(DecimalType(25, 20))) \
         .withColumn('latitude', F.col('latitude').cast(DecimalType(25, 20))) \
-        .withColumn('offense_end_datetime', F.col('offense_end_datetime').cast(TimestampNTZType()))
+        .withColumn('offense_end_datetime', F.col('offense_end_datetime').cast(TimestampNTZType())) \
+        .withColumn('incident_type', F.lit('crime'))
 
     neighborhood_data = load_data(neighborhood_file_path, s.dim_neighborhood_schema)
     
