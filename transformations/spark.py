@@ -1,9 +1,8 @@
 from sedona.spark import *
 from sedona.sql import ST_AsText
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructType, DecimalType, TimestampNTZType
-from typing import Optional
+from pyspark.sql.types import DecimalType, TimestampNTZType
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
 from data_cleaning import add_missing_columns, add_neighborhood, reorder_row_if_needed
