@@ -20,7 +20,9 @@ BUCKET = 'seattle-fire-and-crime'
 PROJECT_ID = 'seattle-fire-and-crime'
 FILES_URIS = [
     'gs://seattle-fire-and-crime/schemas.py',
-    'gs://seattle-fire-and-crime/filepaths.py'
+    'gs://seattle-fire-and-crime/filepaths.py',
+    'gs://seattle-fire-and-crime/data_flow.py',
+    'gs://seattle-fire-and-crime/data-cleaning.py'
 ]
 JARS_URIS = [
     'gs://seattle-fire-and-crime/jars/geotools-wrapper-1.7.0-28.5.jar',

@@ -32,13 +32,27 @@ jobs:
     - id: 'upload-filepaths'
       uses: 'google-github-actions/upload-cloud-storage@v2'
       with:
-        path: 'transformations/filepaths.py'
+        path: 'transformations/config/filepaths.py'
         destination: '${{ secrets.GCS_BUCKET_NAME }}'
         gzip: false
 
     - id: 'upload-schemas'
       uses: 'google-github-actions/upload-cloud-storage@v2'
       with:
-        path: 'transformations/schemas.py'
+        path: 'transformations/config/schemas.py'
+        destination: '${{ secrets.GCS_BUCKET_NAME }}'
+        gzip: false
+
+    - id: 'upload-data-flow'
+      uses: 'google-github-actions/upload-cloud-storage@v2'
+      with:
+        path: 'transformations/helpers/data_flow.py'
+        destination: '${{ secrets.GCS_BUCKET_NAME }}'
+        gzip: false
+
+    - id: 'upload-data-cleaning'
+      uses: 'google-github-actions/upload-cloud-storage@v2'
+      with:
+        path: 'transformations/helpers/data_cleaning.py'
         destination: '${{ secrets.GCS_BUCKET_NAME }}'
         gzip: false

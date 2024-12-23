@@ -6,6 +6,8 @@ from pyspark.sql.types import StructType, DecimalType, TimestampNTZType
 from typing import Optional
 import schemas as s
 from filepaths import fire_file_path, crime_file_path, neighborhood_file_path 
+from data_cleaning import add_missing_columns, add_neighborhood, reorder_row_if_needed
+from data_flow import load_data, write_to_bigquery
 
 spark = SparkSession.builder.appName('SeattleIncidents') \
     .getOrCreate()
@@ -21,13 +23,13 @@ spark.conf.set('temporaryGcsBucket', bucket)
 spark.conf.set("spark.sql.adaptive.enabled", "true")
 
 def main():
-    fire_data = load_data(fire_file_path, s.fire_schema) \
+    fire_data = load_data(spark, sedona, fire_file_path, s.fire_schema) \
         .withColumn('incident_type', F.lit('fire')) \
         .withColumnRenamed('type', 'fire_type') \
         .drop_duplicates(['incident_number'])
 
     # Crime data when read from data sometimes has offense_end_datetime value in the wrong column
-    crime_data_initial = load_data(crime_file_path, infer_schema=False) \
+    crime_data_initial = load_data(spark, sedona, crime_file_path, infer_schema=False) \
         .withColumnRenamed('_100_block_address', 'address') \
         .withColumnRenamed('offense_start_datetime', 'datetime') \
         .drop_duplicates(['report_number'])
@@ -48,10 +50,9 @@ def main():
         .withColumn('offense_end_datetime', F.col('offense_end_datetime').cast(TimestampNTZType())) \
         .withColumn('incident_type', F.lit('crime'))
 
-    neighborhood_data = load_data(neighborhood_file_path, s.dim_neighborhood_schema)
+    neighborhood_data = load_data(spark, sedona, neighborhood_file_path, s.dim_neighborhood_schema)
     
     # Add neighborhood data
-    print('Adding neighborhood data to fire and crime')
     fire_data_neighb = add_neighborhood(fire_data, neighborhood_data)
     crime_data_neighb = add_neighborhood(crime_data, neighborhood_data)
 
@@ -61,12 +62,10 @@ def main():
         .select(*s.all_incidents_schema.fieldNames())
 
     # Combine all incident data
-    print('Combining fire and crime data')
     all_incidents = fire_data_prep.union(crime_data_prep) \
         .withColumn('incident_id', F.monotonically_increasing_id())
 
     # Create dim_neighborhood
-    print('Creating dim_neighborhood table')
     dim_neighborhood = neighborhood_data \
         .drop_duplicates(['geometry', 'district', 'neighborhood']) \
         .withColumn('neighborhood_id', F.hash(F.concat(F.col('district'), F.col('neighborhood')))) \
@@ -75,8 +74,6 @@ def main():
     dim_neighborhood_wkt = dim_neighborhood.withColumn('geometry', ST_AsText(F.col('geometry')))
 
     # Create dim_date
-    print('Creating dim_date')
-
     dim_date = all_incidents \
         .select('datetime') \
         .drop_duplicates(['datetime']) \
@@ -95,7 +92,6 @@ def main():
         .select(*s.dim_date_schema.fieldNames())
 
     # Create dim_incident_type
-    print('Creating dim_incident_type')
     dim_incident_type = all_incidents \
         .select('incident_type') \
         .distinct() \
@@ -103,7 +99,6 @@ def main():
         .select(*s.dim_incident_type_schema.fieldNames()) 
     
     # Create dim_crime_details
-    print('Creating dim_crime_details')
     dim_crime_details = all_incidents \
         .select(
             'report_number', 'offense_id', 'report_datetime', 'group_a_b', 'crime_against_category', 
@@ -114,15 +109,12 @@ def main():
         .select(*s.dim_crime_details_schema.fieldNames())
     
     # Create dim_fire_details
-    print('Creating dim_fire_details')
     dim_fire_details = all_incidents \
         .select('fire_type', 'report_location', 'incident_number') \
         .withColumn('fire_detail_id', F.monotonically_increasing_id()) \
         .select(*s.dim_fire_details_schema.fieldNames())
 
     # Create fact table
-    print('Creating fact_incident table')
-
     fact_incident = all_incidents \
         .join(dim_date, all_incidents['datetime'].eqNullSafe(dim_date['datetime']), 'inner') \
         .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
@@ -138,93 +130,10 @@ def main():
            'dim_fire_details': dim_fire_details,
            'fact_incident': fact_incident}
 
-    # Write fact table
-    print('Writing to bigquery')
+    # Write tables to bigquery
     write_to_bigquery(dfs, 'overwrite')
 
     spark.stop()
-
-def load_data(filename: str, schema_name: Optional[StructType] = None, infer_schema: bool = True) -> DataFrame:
-    filetype = filename.split('.')[-1]
-    if filetype == 'csv':
-        if infer_schema:
-            return spark.read.csv(filename, header = True, schema = schema_name)
-        else:
-            return spark.read.csv(filename, header = True)
-    elif filetype == 'geojson':
-        df = sedona.read.format('geojson').option('multiLine', 'true').load(filename) \
-                .selectExpr('explode(features) as features') \
-                .select('features.*') \
-                .withColumn('district', F.expr("properties['L_HOOD']")) \
-                .withColumn('neighborhood', F.expr("properties['S_HOOD']")) \
-                .withColumn('geometry', F.col('geometry')) \
-                .drop('properties') \
-                .drop('type')
-        
-        return df
-    else:
-        raise Exception('Unsupported filetype load attempted')
-    
-def reorder_row_if_needed(*args) -> list[str]:
-    values = list(args)
-    is_latitude = False
-
-    if values[-1] is not None:
-        try:
-            # Attempt to convert the last value to a float (latitude)
-            latitude = float(values[-1])  # Latitude is expected to be a decimal number
-            is_latitude = True
-        except ValueError:
-            is_latitude = False
-
-    if is_latitude:
-        temp = values[3]
-        for i in range(4, 17): 
-            values[i - 1] = values[i]
-
-        values[16] = temp
-    
-    return values
-
-def read_from_bigquery(table_name: str) -> DataFrame:
-    try:
-        df = spark.read.format('bigquery') \
-            .option('table', f'seattle_dataset.{table_name}') \
-            .load()
-    except Exception as e:
-        print(type(e))
-        print(e)
-        df = spark.createDataFrame([], s.dim_neighborhood_schema)
-    return df
-
-def write_to_bigquery(dfs: dict, m: str):
-    # Save the data to BigQuery (overwriting for now before incremental batch load is implemented)
-    for name, df in dfs.items():
-        df.write.format('bigquery') \
-            .option('writeMethod', 'direct') \
-            .mode(m) \
-            .save(f'seattle_dataset.{name}')
-
-def add_neighborhood(df: DataFrame, neighb_info: DataFrame) -> DataFrame:
-    point_df = df.withColumn('point', ST_Point(df.longitude, df.latitude))
-    neighb_df = point_df.alias('point_df') \
-        .join(F.broadcast(neighb_info).alias('neighb_info'), ST_Within(point_df.point, neighb_info.geometry), 'left') 
-
-    return neighb_df
-
-def add_missing_columns(df: DataFrame, schema: StructType) -> DataFrame:
-    df_columns = set(df.columns)
-    target_columns = set([field.name for field in schema.fields])
-
-    missing_columns = target_columns - df_columns
-
-    for col in missing_columns:
-        # Find the type of the missing column from the target schema
-        column_type = dict((field.name, field.dataType) for field in schema.fields).get(col)
-        if column_type:
-            df = df.withColumn(col, F.lit(None).cast(column_type))
-    
-    return df
 
 if __name__ == '__main__':
     main()
