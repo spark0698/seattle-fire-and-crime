@@ -119,7 +119,7 @@ dim_crime_details_schema = StructType([
     StructField('mcpp', StringType())
 ])
 
-dime_fire_details_schema = StructType([
+dim_fire_details_schema = StructType([
     StructField('fire_detail_id', IntegerType()),
     StructField('type', StringType()),
     StructField('report_location', StringType()),
