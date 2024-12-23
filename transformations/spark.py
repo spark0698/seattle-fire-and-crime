@@ -23,7 +23,7 @@ spark.conf.set("spark.sql.adaptive.enabled", "true")
 def main():
     fire_data = load_data(fire_file_path, s.fire_schema) \
         .withColumn('incident_type', F.lit('fire')) \
-        .wthColumnRenamed('type', 'fire_type') \
+        .withColumnRenamed('type', 'fire_type') \
         .drop_duplicates(['incident_number'])
 
     # Crime data when read from data sometimes has offense_end_datetime value in the wrong column
