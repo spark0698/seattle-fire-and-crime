@@ -3,6 +3,6 @@ logs/
 plugins/
 __pycache__/
 gcp/
-venv/
+.venv/
 .env
 .DS_Store

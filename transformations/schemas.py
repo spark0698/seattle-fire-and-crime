@@ -65,23 +65,11 @@ fact_incident_schema = StructType([
     StructField('neighborhood_id', IntegerType()),
     StructField('date_id', IntegerType()),
     StructField('incident_type_id', IntegerType()),
+    StructField('crime_detail_id', IntegerType()),
     StructField('address', StringType()),
     StructField('type', StringType()),
     StructField('report_location', StringType()),
     StructField('incident_number', StringType()),
-    StructField('report_number', StringType()),
-    StructField('offense_id', StringType()),
-    StructField('group_a_b', StringType()),
-    StructField('crime_against_category', StringType()),
-    StructField('offense_parent_group', StringType()),
-    StructField('offense', StringType()),
-    StructField('offense_code', StringType()),
-    StructField('precinct', StringType()),
-    StructField('sector', StringType()),
-    StructField('beat', StringType()),
-    StructField('mcpp', StringType()),
-    StructField('offense_end_datetime', TimestampNTZType()),     # Crime Only offense end datetime
-    StructField('report_datetime', TimestampNTZType()),          # Crime Only reported datetime
     StructField('longitude', DecimalType(25, 20)),
     StructField('latitude', DecimalType(25, 20))
 ])
@@ -112,4 +100,28 @@ dim_date_schema = StructType([
     StructField('weekday_name', StringType()),                   # Full weekday name (e.g., Monday)
     StructField('month_name', StringType()),                     # Full month name (e.g., January)
     StructField('quarter', IntegerType())                        # Quarter (1, 2, 3, or 4)
+])
+
+dim_crime_details_schema = StructType([
+    StructField('crime_detail_id', IntegerType()),
+    StructField('report_number', StringType()),
+    StructField('offense_id', StringType()),
+    StructField('offense_end_datetime', TimestampNTZType()),
+    StructField('report_datetime', TimestampNTZType()),
+    StructField('group_a_b', StringType()),
+    StructField('crime_against_category', StringType()),
+    StructField('offense_parent_group', StringType()),
+    StructField('offense', StringType()),
+    StructField('offense_code', StringType()),
+    StructField('precinct', StringType()),
+    StructField('sector', StringType()),
+    StructField('beat', StringType()),
+    StructField('mcpp', StringType())
+])
+
+dime_fire_details_schema = StructType([
+    StructField('fire_detail_id', IntegerType()),
+    StructField('type', StringType()),
+    StructField('report_location', StringType()),
+    StructField('incident_number', StringType())
 ])

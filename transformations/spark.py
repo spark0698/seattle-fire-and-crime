@@ -100,6 +100,24 @@ def main():
         .distinct() \
         .withColumn('incident_type_id', F.monotonically_increasing_id()) \
         .select(*s.dim_incident_type_schema.fieldNames()) 
+    
+    # Create dim_crime_details
+    print('Creating dim_crime_details')
+    dim_crime_details = all_incidents \
+        .select(
+            'report_number', 'offense_id', 'report_datetime', 'group_a_b', 'crime_against_category', 
+            'offense_parent_group', 'offense', 'offense_code', 'precinct', 'sector', 'beat', 'mcpp', 
+            'offense_end_datetime'
+            ) \
+        .withColumn('crime_detail_id', F.monotonically_increasing_id()) \
+        .select(*s.dim_crime_details_schema.fieldNames())
+    
+    # Create dim_fire_details
+    print('Creating dim_fire_details')
+    dim_fire_details = all_incidents \
+        .select('type', 'report_location', 'incident_number') \
+        .withColumn('fire_detail_id', F.monotonically_increasing_id()) \
+        .select(*s.dim_fire_details_schema.fieldNames())
 
     # Create fact table
     print('Creating fact_incident table')
@@ -108,11 +126,15 @@ def main():
         .join(dim_date, all_incidents['datetime'].eqNullSafe(dim_date['datetime']), 'inner') \
         .join(dim_neighborhood, ['geometry', 'district', 'neighborhood'], 'left') \
         .join(dim_incident_type, 'incident_type', 'left') \
+        .join(dim_crime_details, 'report_number', 'left') \
+        .join(dim_fire_details, 'incident_number', 'left') \
         .select(*s.fact_incident_schema.fieldNames())
 
     dfs = {'dim_incident_type': dim_incident_type,
            'dim_neighborhood': dim_neighborhood_wkt,
            'dim_date': dim_date,
+           'dim_crime_details': dim_crime_details,
+           'dim_fire_details': dim_fire_details,
            'fact_incident': fact_incident}
 
     # Write fact table
