@@ -36,7 +36,7 @@ all_incidents_schema = StructType([
     StructField('incident_id', IntegerType()),
     StructField('incident_type', StringType()),
     StructField('address', StringType()),
-    StructField('type', StringType()),
+    StructField('fire_type', StringType()),
     StructField('report_location', StringType()),
     StructField('incident_number', StringType()),
     StructField('report_number', StringType()),
@@ -66,10 +66,8 @@ fact_incident_schema = StructType([
     StructField('date_id', IntegerType()),
     StructField('incident_type_id', IntegerType()),
     StructField('crime_detail_id', IntegerType()),
+    StructField('fire_detail_id', IntegerType()),
     StructField('address', StringType()),
-    StructField('type', StringType()),
-    StructField('report_location', StringType()),
-    StructField('incident_number', StringType()),
     StructField('longitude', DecimalType(25, 20)),
     StructField('latitude', DecimalType(25, 20))
 ])
@@ -121,7 +119,7 @@ dim_crime_details_schema = StructType([
 
 dim_fire_details_schema = StructType([
     StructField('fire_detail_id', IntegerType()),
-    StructField('type', StringType()),
+    StructField('fire_type', StringType()),
     StructField('report_location', StringType()),
     StructField('incident_number', StringType())
 ])
