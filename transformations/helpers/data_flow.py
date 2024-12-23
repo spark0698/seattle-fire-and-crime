@@ -1,6 +1,7 @@
 from sedona.spark import *
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType
+from typing import Optional
 
 def load_data(spark: SparkSession, sedona: SedonaContext, filename: str, schema_name: Optional[StructType] = None, infer_schema: bool = True) -> DataFrame:
     filetype = filename.split('.')[-1]
